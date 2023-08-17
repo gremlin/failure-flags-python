@@ -18,5 +18,5 @@ classifiers = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/gremlin/failure-flags-python"
+"Code" = "https://github.com/gremlin/failure-flags-python"
 "Bug Tracker" = "https://github.com/gremlin/failure-flags-python/issues"
