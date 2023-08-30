@@ -10,9 +10,9 @@ debug.setLevel(logging.DEBUG)
 
 class TestFailureFlagsBehaviors(unittest.TestCase):
 
-    ##################################################3
+    ##################################################
     # Testing the latency behavior
-    ##################################################3
+    ##################################################
 
     @patch('failureflags.time.sleep')
     def test_latencyNoExperiments(self, mock_sleep):
@@ -129,9 +129,9 @@ class TestFailureFlagsBehaviors(unittest.TestCase):
         mock_sleep.assert_has_calls([call(10), call(20)])
         assert impacted == True, "No impact reported when latency experiments were provided"
 
-    ##################################################3
+    ##################################################
     # Testing the exception behavior
-    ##################################################3
+    ##################################################
 
     def test_exceptionNoExperiments(self):
         try:
@@ -218,9 +218,9 @@ class TestFailureFlagsBehaviors(unittest.TestCase):
             return
         assert False, "An exception must be raised if the experiment provides a valid exception clause"
 
-    ##################################################3
+    ##################################################
     # Testing the delayedDataOrError behavior
-    ##################################################3
+    ##################################################
 
     @patch('failureflags.time.sleep')
     def test_delayedException(self, mock_sleep):
