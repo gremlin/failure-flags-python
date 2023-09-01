@@ -82,6 +82,8 @@ workflows:
       - test-release:
           filters:
             <<: *filters-prerelease
+          requires:
+           - build
 
   release:
     jobs:
