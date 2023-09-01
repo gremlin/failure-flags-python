@@ -89,6 +89,7 @@ workflows:
             tags:
               only: /^v.*/
       - test-release:
+          context: gremlin-pypi
           filters:
             <<: *filters-release
           requires:
@@ -97,6 +98,7 @@ workflows:
           type: approval
           requires:
            - build
+           - test-release
       - test-release:
           context: gremlin-pypi
           requires: [hold]
