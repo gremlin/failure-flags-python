@@ -96,6 +96,8 @@ workflows:
            - build
       - hold:
           type: approval
+          filters:
+            <<: *filters-release
           requires:
            - test-release
       - release:
