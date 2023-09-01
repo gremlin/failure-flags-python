@@ -4,6 +4,7 @@ deps:
 	@pip install pytest twine pip-tools
 
 clean:
+	@ls -al dist
 	@rm dist/*
 	@rm -rf build/*
 
