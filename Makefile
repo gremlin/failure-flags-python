@@ -1,4 +1,7 @@
-.PHONY: build
+.PHONY: build deps clean build test check test-release release
+
+deps:
+	@pip install pytest twine pip-tools
 
 clean:
 	@rm dist/*
@@ -13,7 +16,10 @@ test:
 
 check:
 	@twine check dist/*
+	@./hack/version-alignment-check.sh
 
-release: build check
+test-release: check
 	@twine upload -r testpypi dist/*
 
+release: 
+	@twine upload -r pypi dist/*

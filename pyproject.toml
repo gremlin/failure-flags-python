@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "failureflags"
-version = "0.0.1"
+dynamic = ["version"]
 authors = [
   { name="Jeff Nickoloff", email="jeff.nickoloff@gremlin.com" },
 ]
@@ -16,6 +16,8 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
 ]
+[tool.setuptools.dynamic]
+version = {attr = "failureflags.VERSION"}
 
 [project.urls]
 "Code" = "https://github.com/gremlin/failure-flags-python"
