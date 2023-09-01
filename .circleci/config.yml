@@ -1,0 +1,105 @@
+# Use the latest 2.1 version of CircleCI pipeline process engine.
+# See: https://circleci.com/docs/2.0/configuration-reference
+version: 2.1
+executors:
+  py-container:
+    docker: 
+      - image: python:bookworm
+    working_directory: /repo
+
+# TODO add caching for deps
+jobs:
+  build:
+    executor: py-container
+    steps:
+      - checkout
+      - run:
+          name: Clean
+          command: make clean
+      - run:
+          name: Deps
+          command: make deps
+      - run:
+          name: Build
+          command: make build 
+      - run:
+          name: Test
+          command: make test
+      - store_artifacts:
+          path: ./dist
+      - persist_to_workspace:
+          root: .
+          paths:
+            - ./dist
+            - ./Makefile
+            - ./hack
+
+  test-release:
+    executor: py-container
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Deps
+          command: make deps
+      - run:
+          name: Releasability Check
+          command: make check
+      - run:
+          name: Publish revision to PyPI Test Index
+          command: make test-release
+
+  release:
+    executor: py-container
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Deps
+          command: make deps
+      - run:
+          name: Releasability Check
+          command: make check
+      - run:
+          name: Publish revision to PyPI
+          command: make release
+
+# Invoke jobs via workflows
+# See: https://circleci.com/docs/2.0/configuration-reference/#workflows
+workflows:
+  build:
+    jobs:
+      - build:
+          filters:
+            branches:
+              ignore: main
+
+  test-release:
+    jobs:
+      - build:
+          filters: &filters-prerelease
+            branches:
+              only: main
+            tags:
+              ignore: /.*/
+      - test-release:
+          filters:
+            <<: *filters-prerelease
+
+  release:
+    jobs:
+      - build:
+          filters: &filters-release
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v.*/
+      - hold:
+          type: approval
+          requires:
+           - build
+      - test-release:
+          context: gremlin-pypi
+          requires: [package]
+          filters:
+            <<: *filters-release
