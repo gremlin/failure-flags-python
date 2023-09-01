@@ -98,7 +98,7 @@ workflows:
           type: approval
           requires:
            - test-release
-      - test-release:
+      - release:
           context: gremlin-pypi
           requires: [hold]
           filters:
