@@ -14,9 +14,6 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Clean
-          command: make clean
-      - run:
           name: Deps
           command: make deps
       - run:
