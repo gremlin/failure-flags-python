@@ -16,4 +16,4 @@ then
   exit 0
 fi
 
-echo "Versions:\n\tGit tag ref:\t${GIT_TAG_FULL}\n\tGit last tag:\t${VERSION}\n\tModule version:\t${MODULE_VERSION}" 
+echo "Versions:\n\tGit tag ref:\t${GIT_TAG_FULL}\n\tGit last tag:\t${VERSION}\n\tModule version:\t${MODULE_VERSION}"  >./dist/.releasable.txt

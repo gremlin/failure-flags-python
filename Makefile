@@ -18,7 +18,7 @@ test:
 
 check:
 	@twine check dist/*
-	./hack/check-releasable.sh
+	@./hack/check-releasable.sh
 
 test-release: check
 	@twine upload -r testpypi dist/*
