@@ -21,7 +21,7 @@ check:
 	@./hack/check-releasable.sh
 
 test-release: check
-	@twine upload -r testpypi dist/*
+	@twine upload --verbose -r testpypi dist/*
 
 release: 
 	@twine upload -r pypi dist/*
