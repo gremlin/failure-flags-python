@@ -100,6 +100,6 @@ workflows:
            - build
       - test-release:
           context: gremlin-pypi
-          requires: [package]
+          requires: [hold]
           filters:
             <<: *filters-release
