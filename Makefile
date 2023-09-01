@@ -11,13 +11,14 @@ clean:
 build:
 	@python3 -m build
 	@python3 -m pip install -e .
+	@./hack/version-alignment-check.sh
 
 test:
 	@pytest -q
 
 check:
 	@twine check dist/*
-	@./hack/version-alignment-check.sh
+	./hack/check-releasable.sh
 
 test-release: check
 	@twine upload -r testpypi dist/*
