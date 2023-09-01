@@ -90,7 +90,7 @@ workflows:
               only: /^v.*/
       - test-release:
           filters:
-            <<: *filters-erelease
+            <<: *filters-release
           requires:
            - build
       - hold:
