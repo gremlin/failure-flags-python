@@ -31,21 +31,6 @@ jobs:
             - ./Makefile
             - ./hack
 
-  test-release:
-    executor: py-container
-    steps:
-      - attach_workspace:
-          at: .
-      - run:
-          name: Deps
-          command: make deps
-      - run:
-          name: Releasability Check
-          command: make check
-      - run:
-          name: Publish revision to PyPI Test Index
-          command: make test-release
-
   release:
     executor: py-container
     steps:
@@ -71,15 +56,6 @@ workflows:
             branches:
               ignore: main
 
-  test-release:
-    jobs:
-      - build:
-          filters: &filters-prerelease
-            branches:
-              only: main
-            tags:
-              ignore: /.*/
-
   release:
     jobs:
       - build:
@@ -88,18 +64,11 @@ workflows:
               ignore: /.*/
             tags:
               only: /^v.*/
-      - test-release:
-          context: gremlin-pypi
-          filters:
-            <<: *filters-release
-          requires:
-           - build
       - hold:
           type: approval
           filters:
             <<: *filters-release
-          requires:
-           - test-release
+          requires: [build]
       - release:
           context: gremlin-pypi
           requires: [hold]
