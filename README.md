@@ -66,7 +66,11 @@ def lambda_handler(event, context):
     }
 ```
 
+## Enabling the SDK in your Environment
+
 *Don't forget to enable the SDK by setting the FAILURE_FLAGS_ENABLED environment variable!* If this environment variable is not set then the SDK will short-circuit and no attempt to fetch experiments will be made.
+
+## Extensibility
 
 You can always bring your own behaviors and effects by providing a behavior function. Here's another Lambda example that writes the experiment data to the console instead of changing the application behavior:
 
@@ -108,7 +112,24 @@ def lambda_handler(event, context):
     }
 ```
 
-### Doing Something Different
+### Providing Metadata to Custom Behaviors
+
+The default effect chain included with the Failure Flags SDK is aware of well-known effect properties including, "latency" and "exception." The user can extend or replace that functionality and use the same properties, or provide their own. For example, suppose a user wants to use a "random jitter" effect that the Standard Chain does not provide. Suppose they wanted to inject a random amount of jitter up to some maximum. They could implement that small extension and make up their own Effect property called, "my-jitter" that specifies that maximum. The resulting Effect Statement would look like:
+
+```json
+{ "my-jitter": 500 }
+```
+
+They might also combine this with parts of the default chain:
+
+```json
+{
+  "latency": 1000,
+  "my-jitter": 500
+}
+```
+
+## Alternatively, use it like a Feature Flag
 
 Sometimes you need even more manual control. For example, in the event of an experiment you might not want to make some API call or need to rollback some transaction. In most cases the Exception effect can help, but the `invoke` function also returns a boolean to indicate if there was an experiment. You can use that to create branches in your code like you would for any feature flag.
 
@@ -126,7 +147,7 @@ else:
 
 If you want to work with lower-level Experiment data you can use `fetch` directly.
 
-## Targeting with Selectors
+## Building Experiments: Targeting with Selectors
 
 Experiments match specific invocations of a Failure Flag based on its name, and the labels you provide. Experiments define Selectors that the Failure Flags engine uses to determine if an invocation matches. Selectors are simple key to list of values maps. The basic matching logic is every key in a selector must be present in the Failure Flag labels, and at least one of the values in the list for a selector key must match the value in the label.
 
@@ -193,19 +214,3 @@ This Effect Statement will cause a Failure Flag to pause for a full 2 seconds be
 }
 ```
 
-### Advanced: Providing Metadata to Custom Behaviors
-
-The default effect chain included with the Failure Flags SDK is aware of well-known effect properties including, "latency" and "exception." The user can extend or replace that functionality and use the same properties, or provide their own. For example, suppose a user wants to use a "random jitter" effect that the Standard Chain does not provide. Suppose they wanted to inject a random amount of jitter up to some maximum. They could implement that small extension and make up their own Effect property called, "my-jitter" that specifies that maximum. The resulting Effect Statement would look like:
-
-```json
-{ "my-jitter": 500 }
-```
-
-They might also combine this with parts of the default chain:
-
-```json
-{
-  "latency": 1000,
-  "my-jitter": 500
-}
-```
