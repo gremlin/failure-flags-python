@@ -100,14 +100,7 @@ class FailureFlag:
         return (active, impacted, experiments)
 
     def fetch(self):
-        """`fetch()` requests the current set of active experiments for this FailureFlag.
-
-        This function will raise exceptions if there is a problem communicating with the
-        sidecar process. The response will always be a list.
-
-        This function does not analyse the resulting list of experiments or apply 
-        probablistic pruning of the list.
-        """
+        """`fetch()` requests the current set of active experiments for this FailureFlag."""
         global logger
         global VERSION
         experiments = []
@@ -116,28 +109,33 @@ class FailureFlag:
         self.labels["failure-flags-sdk-version"] = f"python-{VERSION}"
         data = json.dumps({"name": self.name, "labels": self.labels}).encode("utf-8")
         request = Request('http://localhost:5032/experiment',
-                          headers={"Content-Type": "application/json", "Content-Length": len(data)}, 
+                          headers={"Content-Type": "application/json", "Content-Length": len(data)},
                           data=data)
-        with urlopen(request, timeout=.001) as response:
-            code = 0
-            if hasattr(response, 'status'):
-                code = response.status
-            if code < 200 or code >= 300:
-                if self.debug:
-                    logger.debug(f"bad status code ({code}) while fetching experiments")
-                return []
+        try:
+            with urlopen(request, timeout=.001) as response:
+                code = response.status if hasattr(response, 'status') else 0
+                if code < 200 or code >= 300:
+                    if self.debug:
+                        logger.debug(f"bad status code ({code}) while fetching experiments")
+                    return []
 
-            # TODO validate Content-Type
-            # TODO validate Content-Length
-            body = response.read()
-            response.close()
-            experiments = json.loads(body)
-            if isinstance(experiments, list) or type(experiments) is list:
-                return experiments
-            elif isinstance(experiments, dict) or type(experiments) is dict:
-                return [experiments]
-            else:
-                return []
+                body = response.read().decode('utf-8').strip()  # Decode and strip whitespace
+                if not body:  # Check if the body is empty
+                    if self.debug:
+                        logger.debug("received empty response body")
+                    return []  # Return an empty list for empty body
+
+                try:
+                    experiments = json.loads(body)
+                except json.JSONDecodeError as err:
+                    if self.debug:
+                        logger.debug(f"received error while decoding JSON: {err}")
+                    return []  # Ignore the error and return an empty list
+                return experiments if isinstance(experiments, list) else [experiments]
+        except Exception as err:
+            if self.debug:
+                logger.debug(f"received error while fetching experiments: {err}")
+        return experiments
 
 def delayedDataOrError(failureflag, experiments):
     """`delayedDataOrError()` is the head of the default behavior chain used by `invoke()`.

@@ -69,5 +69,23 @@ class TestFetch(unittest.TestCase):
         url_cm.read.assert_not_called()
         assert len(experiments) == 0
 
+    def test_fetchHandlesEmptyBody(self):
+        # Mock the FailureFlag class
+        failure_flag = failureflags.FailureFlag("targetLatencyNumber", {}, debug=True)
+
+        # Mock the urlopen response
+        failure_flag.urlopen = MagicMock()
+        failure_flag.urlopen.return_value.read = MagicMock(return_value="")  # Simulate empty body
+        failure_flag.urlopen.return_value.status = 200
+
+        # Call the fetch function
+        experiments = failure_flag.fetch()
+
+        # Assert the result is an empty list
+        self.assertEqual(experiments, [])
+
+if __name__ == '__main__':
+    unittest.main()
+
 if __name__ == '__main__':
         unittest.main()
