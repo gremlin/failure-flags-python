@@ -123,7 +123,6 @@ class FailureFlag:
                     logger.debug(f"bad status code ({code}) while fetching experiments")
                 return []
 
-            print(response.headers.get("Content-Type", "").lower())
             # Validate Content-Type
             content_type = response.headers.get("Content-Type", "").lower()
             if content_type != "application/json":
