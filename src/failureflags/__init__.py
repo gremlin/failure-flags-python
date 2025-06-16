@@ -122,8 +122,23 @@ class FailureFlag:
                 if self.debug:
                     logger.debug(f"bad status code ({code}) while fetching experiments")
                 return []
-            # TODO validate Content-Type
-            # TODO validate Content-Length
+
+            print(response.headers.get("Content-Type", "").lower())
+            # Validate Content-Type
+            content_type = response.headers.get("Content-Type", "").lower()
+            if content_type != "application/json":
+                if self.debug:
+                    logger.debug(f"unexpected Content-Type: {content_type}")
+                return []
+
+            # Validate Content-Length
+            content_length = response.headers.get("Content-Length", None)
+            if content_length is None or not content_length.isdigit() or int(content_length) <= 0:
+                if self.debug:
+                    logger.debug(f"invalid Content-Length: {content_length}")
+                return []
+
+            # Read the response body
             body = response.read().decode('utf-8').strip()  # Decode and strip whitespace
             response.close()
             experiments = json.loads(body)
