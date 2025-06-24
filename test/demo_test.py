@@ -12,13 +12,12 @@ debug.setLevel(logging.DEBUG)
 
 class TestInvoke(unittest.TestCase):
 
+
     @patch('failureflags.urlopen')
     @patch('failureflags.time.sleep')
     @patch.dict(os.environ, {"FAILURE_FLAGS_ENABLED": "TRUE"})
     def test_e2eEnabledWithLatency(self, mock_sleep, mock_urlopen):
-        url_cm = MagicMock()
-        url_cm.status = 200
-        url_cm.read = MagicMock(return_value="""[{
+        response_bytes = b"""[{
             "guid": "6884c0df-ed70-4bc8-84c0-dfed703bc8a7",
             "failureFlagName": "targetLatencyNumber",
             "rate": 1,
@@ -28,7 +27,14 @@ class TestInvoke(unittest.TestCase):
             },
             "effect": {
               "latency": 10000
-            }}]""")
+            }}]"""
+        url_cm = MagicMock()
+        url_cm.status = 200
+        url_cm.read = MagicMock(return_value=response_bytes)
+        url_cm.headers.get = MagicMock(side_effect=lambda key, default=None: {
+            "Content-Type": "application/json",
+            "Content-Length": str(len(response_bytes))
+        }.get(key, default))
         url_cm.__enter__.return_value = url_cm
         mock_urlopen.return_value = url_cm
         assert "FAILURE_FLAGS_ENABLED" in os.environ
