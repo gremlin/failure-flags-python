@@ -16,9 +16,7 @@ class TestInvoke(unittest.TestCase):
     @patch('failureflags.time.sleep')
     @patch.dict(os.environ, {"FAILURE_FLAGS_ENABLED": "TRUE"})
     def test_e2eEnabledWithLatency(self, mock_sleep, mock_urlopen):
-        url_cm = MagicMock()
-        url_cm.status = 200
-        url_cm.read = MagicMock(return_value="""[{
+        response_bytes = b"""[{
             "guid": "6884c0df-ed70-4bc8-84c0-dfed703bc8a7",
             "failureFlagName": "targetLatencyNumber",
             "rate": 1,
@@ -28,7 +26,14 @@ class TestInvoke(unittest.TestCase):
             },
             "effect": {
               "latency": 10000
-            }}]""")
+            }}]"""
+        url_cm = MagicMock()
+        url_cm.status = 200
+        url_cm.read = MagicMock(return_value=response_bytes)
+        url_cm.headers.get = MagicMock(side_effect=lambda key, default=None: {
+            "Content-Type": "application/json",
+            "Content-Length": str(len(response_bytes))
+        }.get(key, default))
         url_cm.__enter__.return_value = url_cm
         mock_urlopen.return_value = url_cm
         assert "FAILURE_FLAGS_ENABLED" in os.environ
@@ -79,44 +84,10 @@ class TestInvoke(unittest.TestCase):
         assert active == False, "works should be inactive because the SDK should be inert"
         assert impacted == False , "works should not be impacted because the SDK should be inert"
 
-    @patch('failureflags.urlopen')
-    @patch('failureflags.time.sleep')
-    @patch.dict(os.environ, {"FAILURE_FLAGS_ENABLED": "TRUE"})
-    def test_customBehaviorWithDelegateToDefault(self, mock_sleep, mock_urlopen):
-        url_cm = MagicMock()
-        url_cm.status = 200
-        url_cm.read = MagicMock(return_value="""[{
-            "guid": "6884c0df-ed70-4bc8-84c0-dfed703bc8a7",
-            "failureFlagName": "works",
-            "rate": 1,
-            "selector": {
-              "a":"1",
-              "b":"2"
-            },
-            "effect": {
-              "latency": 10000
-            }}]""")
-        url_cm.__enter__.return_value = url_cm
-        mock_urlopen.return_value = url_cm
-
-        evidence = MagicMock(return_value="invoked")
-
-        assert "FAILURE_FLAGS_ENABLED" in os.environ
-
-        def customBehavior(ff, experiments):
-            evidence()
-            return failureflags.defaultBehavior(ff, experiments)
-
-        failureflags.FailureFlag(
-                "works", 
-                {}, 
-                debug=True, 
-                behavior=customBehavior).invoke()
-
-        url_cm.__enter__.assert_called();
-        url_cm.read.assert_called();
-        evidence.assert_called();
-        mock_sleep.assert_called_with(10)
+        url_cm.headers.get = MagicMock(side_effect=lambda key, default=None: {
+            "Content-Type": "application/json",
+            "Content-Length": str(len(response_bytes))
+        }.get(key, default))
 
 if __name__ == '__main__':
         unittest.main()

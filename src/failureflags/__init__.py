@@ -101,11 +101,9 @@ class FailureFlag:
 
     def fetch(self):
         """`fetch()` requests the current set of active experiments for this FailureFlag.
-
         This function will raise exceptions if there is a problem communicating with the
         sidecar process. The response will always be a list.
-
-        This function does not analyse the resulting list of experiments or apply 
+        This function does not analyse the resulting list of experiments or apply
         probablistic pruning of the list.
         """
         global logger
@@ -116,20 +114,31 @@ class FailureFlag:
         self.labels["failure-flags-sdk-version"] = f"python-{VERSION}"
         data = json.dumps({"name": self.name, "labels": self.labels}).encode("utf-8")
         request = Request('http://localhost:5032/experiment',
-                          headers={"Content-Type": "application/json", "Content-Length": len(data)}, 
+                          headers={"Content-Type": "application/json", "Content-Length": len(data)},
                           data=data)
         with urlopen(request, timeout=.001) as response:
-            code = 0
-            if hasattr(response, 'status'):
-                code = response.status
+            code = response.status if hasattr(response, 'status') else 0
             if code < 200 or code >= 300:
                 if self.debug:
                     logger.debug(f"bad status code ({code}) while fetching experiments")
                 return []
 
-            # TODO validate Content-Type
-            # TODO validate Content-Length
-            body = response.read()
+            # Validate Content-Type
+            content_type = response.headers.get("Content-Type", "").lower()
+            if content_type != "application/json":
+                if self.debug:
+                    logger.debug(f"unexpected Content-Type: {content_type}")
+                return []
+
+            # Validate Content-Length
+            content_length = response.headers.get("Content-Length", None)
+            if content_length is None or not content_length.isdigit() or int(content_length) <= 0:
+                if self.debug:
+                    logger.debug(f"invalid Content-Length: {content_length}")
+                return []
+
+            # Read the response body
+            body = response.read().decode('utf-8').strip()  # Decode and strip whitespace
             response.close()
             experiments = json.loads(body)
             if isinstance(experiments, list) or type(experiments) is list:
