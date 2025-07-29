@@ -25,7 +25,7 @@ class FailureFlag:
     This package sends debug logs to a logger named `failureflags`.
     """
 
-    def __init__(self, name, labels, behavior=None, data={}, debug=False):
+    def __init__(self, name, labels, behavior=None, data={}, debug=False, timeout=.001):
         """Create a new FailureFlag.
 
         Keyword arguments:
@@ -40,6 +40,7 @@ class FailureFlag:
         self.behavior = behavior if behavior != None else defaultBehavior
         self.data = data 
         self.debug = True if debug != False else False # filter out any other possible values that might be provided
+        self.timeout = timeout
 
     def __str__(self):
         return f"<FailureFlag name:{self.name} labels:{self.labels} debug:{self.debug}>"
@@ -116,7 +117,7 @@ class FailureFlag:
         request = Request('http://localhost:5032/experiment',
                           headers={"Content-Type": "application/json", "Content-Length": len(data)},
                           data=data)
-        with urlopen(request, timeout=.001) as response:
+        with urlopen(request, timeout=self.timeout) as response:
             code = response.status if hasattr(response, 'status') else 0
             if code < 200 or code >= 300:
                 if self.debug:
