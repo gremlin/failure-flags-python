@@ -96,7 +96,7 @@ def lambda_handler(event, context):
     start = time.time()
 
     # Change 2: add a FailureFlag to your code
-    FailureFlag("http-ingress", {}, debug=True, behavior=customBehavior).invoke()
+    FailureFlag("http-ingress", {}, debug=True, behavior=customBehavior, timeout=.005).invoke()
 
     end = time.time()
     return {
