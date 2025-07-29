@@ -11,7 +11,7 @@ from logging import NullHandler
 logger = logging.getLogger(__name__)
 logger.addHandler(NullHandler())
 
-VERSION = "1.0.2"
+VERSION = "1.0.3"
 
 class FailureFlag:
     """FailureFlag represents a point in your code where you want to be able to inject failures dynamically.
