@@ -68,7 +68,36 @@ def lambda_handler(event, context):
 
 ## Enabling the SDK in your Environment
 
-*Don't forget to enable the SDK by setting the FAILURE_FLAGS_ENABLED environment variable!* If this environment variable is not set then the SDK will short-circuit and no attempt to fetch experiments will be made.
+*Don't forget to enable the SDK by setting the FAILURE_FLAGS_ENABLED environment variable to `true`, `yes`, or `1`!* Any other value, including `false`, and any unset variable leaves the SDK short-circuited, and no attempt to fetch experiments will be made.
+
+The rest of the SDK's configuration comes from the environment too, and every variable is optional:
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `FAILURE_FLAGS_ENABLED` | unset | Set to `true`, `yes`, or `1` (case-insensitive) to enable the SDK. Anything else disables it. |
+| `FAILURE_FLAGS_ENDPOINT` | `http://localhost:5032/experiment` | The full sidecar URL. Takes precedence over the host and port variables below. |
+| `GREMLIN_SIDECAR_HOST` | `localhost` | The sidecar host, matching the sidecar's own configuration namespace. |
+| `GREMLIN_SIDECAR_PORT` | `5032` | The sidecar port. A value outside 1..65535 falls back to the default. |
+| `FAILURE_FLAGS_TIMEOUT_MS` | `1` | The fetch deadline in **milliseconds**. The sidecar is a co-process on loopback, so this is deliberately tight. |
+
+The `endpoint` and `timeout` keyword arguments to `FailureFlag` override the corresponding variables. Mind the units: `timeout` is in seconds (`timeout=.005`), `FAILURE_FLAGS_TIMEOUT_MS` is in milliseconds.
+
+Every variable is read on each call, so a `FailureFlag` constructed at import time still picks up configuration that the process sets later.
+
+### Changed since 1.0.3
+
+`FAILURE_FLAGS_ENABLED` used to enable the SDK whenever the variable was *present*, whatever its value. Setting it to `false`, as the install docs tell proxy-mode users to do, left the SDK live and injecting faults. The value is now parsed, so `false`, `no`, `0`, and `""` all disable the SDK.
+
+One consequence: `FailureFlag.enabled` is now a read-only property backed by the environment. If you were disabling a flag by assigning to it, patch the environment instead:
+
+```python
+# no longer works: raises AttributeError
+flag.enabled = False
+
+# do this instead
+with unittest.mock.patch.dict(os.environ, {"FAILURE_FLAGS_ENABLED": "false"}):
+    flag.invoke()
+```
 
 ## Extensibility
 
@@ -196,7 +225,7 @@ If your app uses custom error types or other error condition metadata then use t
 }
 ```
 
-If `module` is omitted the SDK will assume `builtins`. If `className` is omitted the SDK will assume `ValueError`.
+If `module` is omitted the SDK will assume `builtins`. If `className` is omitted the SDK will assume `ValueError`. `name` works as an alias for `className`, so the cross-language error metadata form (`{"message": ..., "name": ...}`) does what you would expect here; `className` wins if you provide both. If the named class cannot be imported the SDK raises a `ValueError` carrying your `message` rather than nothing at all.
 
 ### Combining the Two for a "Delayed Exception"
 

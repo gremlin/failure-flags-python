@@ -10,6 +10,18 @@ debug = logging.getLogger("failureflags")
 debug.addHandler(logging.StreamHandler())
 debug.setLevel(logging.DEBUG)
 
+def jsonResponse(body):
+    """Builds a mock urlopen context manager that answers with `body`."""
+    url_cm = MagicMock()
+    url_cm.status = 200
+    url_cm.read = MagicMock(return_value=body)
+    url_cm.headers.get = MagicMock(side_effect=lambda key, default=None: {
+        "Content-Type": "application/json",
+        "Content-Length": str(len(body))
+    }.get(key, default))
+    url_cm.__enter__.return_value = url_cm
+    return url_cm
+
 class TestInvoke(unittest.TestCase):
 
     @patch('failureflags.urlopen')
@@ -127,6 +139,49 @@ class TestInvoke(unittest.TestCase):
         url_cm.read.assert_called()
         evidence.assert_called()
         mock_sleep.assert_called_with(10)
+
+    @patch('failureflags.urlopen')
+    @patch('failureflags.time.sleep')
+    @patch.dict(os.environ, {"FAILURE_FLAGS_ENABLED": "TRUE"})
+    def test_experimentWithoutARateDoesNotRaise(self, mock_sleep, mock_urlopen):
+        # the sidecar response is not trusted input: invoke() promises never to raise on
+        # its own, so a malformed experiment is reported but not applied
+        mock_urlopen.return_value = jsonResponse(b'[{"effect":{"latency":10000}}]')
+
+        flag = failureflags.FailureFlag("name", {}, debug=True)
+        active, impacted, experiments = flag.invoke()
+
+        mock_sleep.assert_not_called()
+        assert active == True, "an experiment was returned, so the flag is active"
+        assert impacted == False, "an experiment with no rate must not be applied"
+        assert len(experiments) == 1
+
+    @patch('failureflags.urlopen')
+    @patch('failureflags.time.sleep')
+    @patch.dict(os.environ, {"FAILURE_FLAGS_ENABLED": "TRUE"})
+    def test_nonDictExperimentsDoNotRaise(self, mock_sleep, mock_urlopen):
+        mock_urlopen.return_value = jsonResponse(b'["hello", 7, null]')
+
+        flag = failureflags.FailureFlag("name", {}, debug=True)
+        active, impacted, experiments = flag.invoke()
+
+        mock_sleep.assert_not_called()
+        assert active == True
+        assert impacted == False
+        assert len(experiments) == 3
+
+    @patch('failureflags.urlopen')
+    @patch.dict(os.environ, {"FAILURE_FLAGS_ENABLED": "TRUE"})
+    def test_fetchErrorIsLoggedNotFormattedIntoAnError(self, mock_urlopen):
+        mock_urlopen.side_effect = OSError("boom")
+
+        flag = failureflags.FailureFlag("name", {}, debug=True)
+        # assertLogs formats each record, which is where a bad debug() call blows up
+        with self.assertLogs("failureflags", level="DEBUG") as logged:
+            active, impacted, experiments = flag.invoke()
+
+        assert (active, impacted, experiments) == (False, False, [])
+        assert "boom" in "\n".join(logged.output)
 
 if __name__ == '__main__':
         unittest.main()
