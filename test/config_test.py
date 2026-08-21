@@ -29,6 +29,60 @@ class TestResolveEndpoint(unittest.TestCase):
         for port in ["0", "-1", "70000", "abc", "80.5", ""]:
             assert failureflags.resolveEndpoint(None, None, None, port) == DEFAULT_ENDPOINT, f"port {port!r}"
 
+class TestParsePort(unittest.TestCase):
+    """GREMLIN_SIDECAR_PORT is a *listen address* to the sidecar, which requires a colon.
+    Parsing it as a plain integer silently discarded every value the sidecar accepts."""
+
+    def test_theFormsTheSidecarAcceptsAllResolveToTheSamePort(self):
+        for raw in ["6032", ":6032", "0.0.0.0:6032", "localhost:6032", "127.0.0.1:6032",
+                    "[::]:6032", " :6032 ", ":6032 "]:
+            with self.subTest(port=raw):
+                assert failureflags.parsePort(raw) == 6032, f"port {raw!r}"
+
+    def test_theHostHalfIsIgnored(self):
+        # a listen address says what the sidecar binds, not where to reach it, and 0.0.0.0
+        # is not a connect target. GREMLIN_SIDECAR_HOST moves the host.
+        assert failureflags.resolveEndpoint(None, None, None, "0.0.0.0:6032") == \
+            "http://localhost:6032/experiment"
+        assert failureflags.resolveEndpoint(None, None, "sidecar", ":6032") == \
+            "http://sidecar:6032/experiment"
+
+    def test_junkFallsBackToTheDefault(self):
+        for raw in ["", ":", "abc", ":abc", "host:", "0", ":0", "-1", ":-1", "70000",
+                    ":70000", "80.5", ":80.5", "6032:6033:", "::"]:
+            with self.subTest(port=raw):
+                assert failureflags.parsePort(raw) is None, f"port {raw!r}"
+
+    def test_listenAddressFormsReachTheSameEndpointAsABarePort(self):
+        bare = failureflags.resolveEndpoint(None, None, None, "6032")
+        for raw in [":6032", "0.0.0.0:6032", "localhost:6032"]:
+            with self.subTest(port=raw):
+                assert failureflags.resolveEndpoint(None, None, None, raw) == bare, \
+                    f"port {raw!r} must resolve where a bare port does"
+
+class TestEndpointScheme(unittest.TestCase):
+
+    def test_onlyHttpIsHonoured(self):
+        # urlopen would happily honour file:// or ftp://, so a misconfigured endpoint must
+        # fall back rather than read a local file and parse it as experiments
+        for endpoint in ["file:///etc/passwd", "ftp://host/x", "data:,[]", "gopher://x",
+                         "not a url", "//host/x"]:
+            with self.subTest(endpoint=endpoint):
+                assert failureflags.resolveEndpoint(endpoint, None, None, None) == \
+                    DEFAULT_ENDPOINT, f"endpoint {endpoint!r}"
+                assert failureflags.resolveEndpoint(None, endpoint, None, None) == \
+                    DEFAULT_ENDPOINT, f"endpoint {endpoint!r}"
+
+    def test_httpAndHttpsPassThrough(self):
+        for endpoint in ["http://host:1/experiment", "https://host:1/experiment",
+                         "HTTP://host:1/experiment"]:
+            with self.subTest(endpoint=endpoint):
+                assert failureflags.resolveEndpoint(endpoint, None, None, None) == endpoint
+
+    def test_aRejectedEndpointStillHonoursHostAndPort(self):
+        assert failureflags.resolveEndpoint("file:///etc/passwd", None, "sidecar", ":6032") == \
+            "http://sidecar:6032/experiment"
+
 class TestResolveTimeout(unittest.TestCase):
 
     def test_defaultWhenNothingIsConfigured(self):

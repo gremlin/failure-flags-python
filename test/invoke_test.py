@@ -143,18 +143,44 @@ class TestInvoke(unittest.TestCase):
     @patch('failureflags.urlopen')
     @patch('failureflags.time.sleep')
     @patch.dict(os.environ, {"FAILURE_FLAGS_ENABLED": "TRUE"})
-    def test_experimentWithoutARateDoesNotRaise(self, mock_sleep, mock_urlopen):
-        # the sidecar response is not trusted input: invoke() promises never to raise on
-        # its own, so a malformed experiment is reported but not applied
+    def test_experimentWithoutARateIsApplied(self, mock_sleep, mock_urlopen):
+        # an absent rate means 1.0, matching the Go and Node SDKs. Skipping it made the
+        # Python SDK report an active experiment that injected nothing, which is the
+        # silent no-op this release exists to remove.
         mock_urlopen.return_value = jsonResponse(b'[{"effect":{"latency":10000}}]')
 
         flag = failureflags.FailureFlag("name", {}, debug=True)
         active, impacted, experiments = flag.invoke()
 
-        mock_sleep.assert_not_called()
+        mock_sleep.assert_called_once_with(10)
         assert active == True, "an experiment was returned, so the flag is active"
-        assert impacted == False, "an experiment with no rate must not be applied"
+        assert impacted == True, "an experiment with no rate must be applied"
         assert len(experiments) == 1
+
+    @patch('failureflags.urlopen')
+    @patch('failureflags.time.sleep')
+    @patch.dict(os.environ, {"FAILURE_FLAGS_ENABLED": "TRUE"})
+    def test_experimentWithAMalformedRateIsNotApplied(self, mock_sleep, mock_urlopen):
+        # a rate that is present but unusable is malformed: fail closed rather than guess
+        # which direction the operator meant
+        for raw in [b'"1"', b'7', b'-0.5', b'true', b'{}', b'null']:
+            with self.subTest(rate=raw):
+                mock_sleep.reset_mock()
+                mock_urlopen.return_value = jsonResponse(
+                    b'[{"rate":' + raw + b',"effect":{"latency":10000}}]')
+
+                flag = failureflags.FailureFlag("name", {}, debug=True)
+                active, impacted, experiments = flag.invoke()
+
+                assert active == True, f"rate {raw!r}: an experiment was returned"
+                assert len(experiments) == 1
+                if raw == b'null':
+                    # null is absent, which means 1.0
+                    mock_sleep.assert_called_once_with(10)
+                    assert impacted == True, "a null rate means always"
+                else:
+                    mock_sleep.assert_not_called()
+                    assert impacted == False, f"rate {raw!r} must not be applied"
 
     @patch('failureflags.urlopen')
     @patch('failureflags.time.sleep')
