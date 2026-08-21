@@ -11,7 +11,7 @@ from logging import NullHandler
 logger = logging.getLogger(__name__)
 logger.addHandler(NullHandler())
 
-VERSION = "1.0.3"
+VERSION = "1.1.0"
 
 ENV_ENABLED = "FAILURE_FLAGS_ENABLED"
 ENV_ENDPOINT = "FAILURE_FLAGS_ENDPOINT"
