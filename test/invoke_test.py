@@ -10,6 +10,18 @@ debug = logging.getLogger("failureflags")
 debug.addHandler(logging.StreamHandler())
 debug.setLevel(logging.DEBUG)
 
+def jsonResponse(body):
+    """Builds a mock urlopen context manager that answers with `body`."""
+    url_cm = MagicMock()
+    url_cm.status = 200
+    url_cm.read = MagicMock(return_value=body)
+    url_cm.headers.get = MagicMock(side_effect=lambda key, default=None: {
+        "Content-Type": "application/json",
+        "Content-Length": str(len(body))
+    }.get(key, default))
+    url_cm.__enter__.return_value = url_cm
+    return url_cm
+
 class TestInvoke(unittest.TestCase):
 
     @patch('failureflags.urlopen')
@@ -127,6 +139,75 @@ class TestInvoke(unittest.TestCase):
         url_cm.read.assert_called()
         evidence.assert_called()
         mock_sleep.assert_called_with(10)
+
+    @patch('failureflags.urlopen')
+    @patch('failureflags.time.sleep')
+    @patch.dict(os.environ, {"FAILURE_FLAGS_ENABLED": "TRUE"})
+    def test_experimentWithoutARateIsApplied(self, mock_sleep, mock_urlopen):
+        # an absent rate means 1.0, matching the Go and Node SDKs. Skipping it made the
+        # Python SDK report an active experiment that injected nothing, which is the
+        # silent no-op this release exists to remove.
+        mock_urlopen.return_value = jsonResponse(b'[{"effect":{"latency":10000}}]')
+
+        flag = failureflags.FailureFlag("name", {}, debug=True)
+        active, impacted, experiments = flag.invoke()
+
+        mock_sleep.assert_called_once_with(10)
+        assert active == True, "an experiment was returned, so the flag is active"
+        assert impacted == True, "an experiment with no rate must be applied"
+        assert len(experiments) == 1
+
+    @patch('failureflags.urlopen')
+    @patch('failureflags.time.sleep')
+    @patch.dict(os.environ, {"FAILURE_FLAGS_ENABLED": "TRUE"})
+    def test_experimentWithAMalformedRateIsNotApplied(self, mock_sleep, mock_urlopen):
+        # a rate that is present but unusable is malformed: fail closed rather than guess
+        # which direction the operator meant
+        for raw in [b'"1"', b'7', b'-0.5', b'true', b'{}', b'null']:
+            with self.subTest(rate=raw):
+                mock_sleep.reset_mock()
+                mock_urlopen.return_value = jsonResponse(
+                    b'[{"rate":' + raw + b',"effect":{"latency":10000}}]')
+
+                flag = failureflags.FailureFlag("name", {}, debug=True)
+                active, impacted, experiments = flag.invoke()
+
+                assert active == True, f"rate {raw!r}: an experiment was returned"
+                assert len(experiments) == 1
+                if raw == b'null':
+                    # null is absent, which means 1.0
+                    mock_sleep.assert_called_once_with(10)
+                    assert impacted == True, "a null rate means always"
+                else:
+                    mock_sleep.assert_not_called()
+                    assert impacted == False, f"rate {raw!r} must not be applied"
+
+    @patch('failureflags.urlopen')
+    @patch('failureflags.time.sleep')
+    @patch.dict(os.environ, {"FAILURE_FLAGS_ENABLED": "TRUE"})
+    def test_nonDictExperimentsDoNotRaise(self, mock_sleep, mock_urlopen):
+        mock_urlopen.return_value = jsonResponse(b'["hello", 7, null]')
+
+        flag = failureflags.FailureFlag("name", {}, debug=True)
+        active, impacted, experiments = flag.invoke()
+
+        mock_sleep.assert_not_called()
+        assert active == True
+        assert impacted == False
+        assert len(experiments) == 3
+
+    @patch('failureflags.urlopen')
+    @patch.dict(os.environ, {"FAILURE_FLAGS_ENABLED": "TRUE"})
+    def test_fetchErrorIsLoggedNotFormattedIntoAnError(self, mock_urlopen):
+        mock_urlopen.side_effect = OSError("boom")
+
+        flag = failureflags.FailureFlag("name", {}, debug=True)
+        # assertLogs formats each record, which is where a bad debug() call blows up
+        with self.assertLogs("failureflags", level="DEBUG") as logged:
+            active, impacted, experiments = flag.invoke()
+
+        assert (active, impacted, experiments) == (False, False, [])
+        assert "boom" in "\n".join(logged.output)
 
 if __name__ == '__main__':
         unittest.main()
