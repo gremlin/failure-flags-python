@@ -18,6 +18,7 @@ classifiers = [
 ]
 [tool.setuptools_scm]
 write_to = "src/failureflags/_version.py"
+local_scheme = "no-local-version"
 
 [project.urls]
 "Code" = "https://github.com/gremlin/failure-flags-python"
