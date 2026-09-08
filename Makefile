@@ -1,4 +1,4 @@
-.PHONY: build deps clean build test check test-release release
+.PHONY: build deps clean build test check check-package check-releasable test-release release
 
 deps:
 	@pip install pytest twine pip-tools
@@ -16,11 +16,15 @@ build:
 test:
 	@pytest -q --junitxml=/tmp/failure-flags-python.junit.xml
 
-check:
+check-package:
 	@twine check dist/*
+
+check-releasable:
 	@./hack/check-releasable.sh
 
-test-release: check
+check: check-package check-releasable
+
+test-release: check-package
 	@twine upload --verbose -r testpypi dist/*
 
 release: 
