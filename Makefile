@@ -14,7 +14,7 @@ build:
 	@./hack/version-alignment-check.sh
 
 test:
-	@pytest -q
+	@pytest -q --junitxml=/tmp/failure-flags-python.junit.xml
 
 check:
 	@twine check dist/*
