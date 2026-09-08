@@ -25,7 +25,7 @@ check-releasable:
 check: check-package check-releasable
 
 test-release: check-package
-	@twine upload --verbose -r testpypi dist/*
+	@twine upload --verbose --skip-existing -r testpypi dist/*
 
 release: 
 	@twine upload -r pypi dist/*
