@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools", "setuptools-scm>=8", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -16,8 +16,8 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
 ]
-[tool.setuptools.dynamic]
-version = {attr = "failureflags.VERSION"}
+[tool.setuptools_scm]
+write_to = "src/failureflags/_version.py"
 
 [project.urls]
 "Code" = "https://github.com/gremlin/failure-flags-python"
