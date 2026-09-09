@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.1.0 (unreleased)
+## 1.1.0
 
 A fail-safe release. Every fix below closes a case where the SDK either injected a fault
 the operator had switched off, or silently injected nothing while reporting to Gremlin that
